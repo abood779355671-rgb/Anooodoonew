@@ -25,7 +25,7 @@ from pathlib import Path
 from typing import Optional, Union
 
 from pyrogram import enums, types
-from py_yt import Playlist, VideosSearch
+from ytlookup import videosearch as yt_videosearch, Playlist
 from UltraMusic import config, logger
 from UltraMusic.helpers import Track, utils
 
@@ -422,7 +422,7 @@ class YouTube:
         """
         Search YouTube using yt-dlp's ytsearch: prefix.
         Uses the Android client — works on Lightsail/datacenter IPs where
-        py_yt (VideosSearch) is blocked.
+        ytlookup (yt_videosearch) is blocked.
         """
         def _search():
             cookie = self.get_cookies() if self.checked else None
@@ -478,31 +478,35 @@ class YouTube:
                     return None
 
             else:
-                # ── Text search: try py_yt first, fall back to yt-dlp ────────
-                # py_yt is faster but fails on datacenter IPs (Lightsail, etc.)
-                # yt-dlp with android client works everywhere.
+                # ── Text search: try ytlookup first, fall back to yt-dlp ──────
+                # ytlookup uses InnerTube directly (~50-100ms, no API key needed)
+                # yt-dlp with android client works everywhere as fallback.
                 track = None
                 try:
-                    _search = VideosSearch(query, limit=1)
-                    results = await asyncio.wait_for(_search.next(), timeout=8)
-                    if results and results.get("result"):
-                        data = results["result"][0]
-                        duration = data.get("duration")
-                        is_live = duration is None or duration == "LIVE"
+                    results = await asyncio.wait_for(
+                        yt_videosearch(query, limit=1), timeout=8
+                    )
+                    if results:
+                        data = results[0]
+                        duration_text = data.get("duration", {}).get("text")
+                        duration_sec = data.get("duration", {}).get("seconds", 0)
+                        is_live = not duration_text or duration_text == "LIVE" or duration_sec == 0
+                        thumbnails = data.get("thumbnails", [])
+                        thumbnail_url = thumbnails[-1].get("url", "").split("?")[0] if thumbnails else ""
                         track = Track(
                             id=data.get("id"),
                             channel_name=data.get("channel", {}).get("name"),
-                            duration=duration if not is_live else "LIVE",
-                            duration_sec=0 if is_live else utils.to_seconds(duration),
+                            duration=duration_text if not is_live else "LIVE",
+                            duration_sec=0 if is_live else duration_sec,
                             message_id=m_id,
                             title=data.get("title", "")[:25],
-                            thumbnail=data.get("thumbnails", [{}])[-1].get("url", "").split("?")[0],
-                            url=data.get("link"),
+                            thumbnail=thumbnail_url,
+                            url=data.get("url"),
                             view_count=data.get("viewCount", {}).get("short"),
                             is_live=is_live,
                         )
                 except Exception as e:
-                    logger.warning(f"⚠️ py_yt search blocked/failed ('{query}'): {e} — falling back to yt-dlp")
+                    logger.warning(f"⚠️ ytlookup search blocked/failed ('{query}'): {e} — falling back to yt-dlp")
 
                 # Fallback: yt-dlp ytsearch (works on Lightsail / datacenter IPs)
                 if not track:
@@ -543,17 +547,26 @@ class YouTube:
                         thumbnail_url = thumbnails[-1].get(
                             "url", "").split("?")[0]
 
-                    # Get link safely
-                    link = data.get("link", "")
+                    # Get url safely (ytlookup uses "url" not "link")
+                    link = data.get("url", "")
                     if "&list=" in link:
                         link = link.split("&list=")[0]
+
+                    # ytlookup returns duration as dict: {"text": "3:45", "seconds": 225}
+                    duration_obj = data.get("duration", {})
+                    if isinstance(duration_obj, dict):
+                        duration_text = duration_obj.get("text", "0:00") or "0:00"
+                        duration_sec = duration_obj.get("seconds", 0) or 0
+                    else:
+                        # fallback if string
+                        duration_text = str(duration_obj) if duration_obj else "0:00"
+                        duration_sec = utils.to_seconds(duration_text)
 
                     track = Track(
                         id=data.get("id", ""),
                         channel_name=data.get("channel", {}).get("name", ""),
-                        duration=data.get("duration", "0:00"),
-                        duration_sec=utils.to_seconds(
-                            data.get("duration", "0:00")),
+                        duration=duration_text,
+                        duration_sec=duration_sec,
                         title=(data.get("title", "Unknown")[:25]),
                         thumbnail=thumbnail_url,
                         url=link,
