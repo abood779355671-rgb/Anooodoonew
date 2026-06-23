@@ -744,10 +744,11 @@ class YouTube:
                     ],
                 }
             else:
-                # Audio mode: favor m4a/opus for best compatibility
+                # Audio mode: best m4a then best, output mp3
                 ydl_opts = {
                     **base_opts,
-                    "format": "bestaudio",
+                    "format": "bestaudio[ext=m4a]/bestaudio/best",
+                    "merge_output_format": "mp3",
                     "postprocessors": [],
                 }
 
@@ -843,5 +844,3 @@ class YouTube:
             ydl_opts_no_cookie = {**ydl_opts}
             ydl_opts_no_cookie.pop("cookiefile", None)
             return await asyncio.to_thread(_download, ydl_opts_no_cookie)
-
-}
