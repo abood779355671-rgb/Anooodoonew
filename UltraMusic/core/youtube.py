@@ -25,7 +25,7 @@ from pathlib import Path
 from typing import Optional, Union
 
 from pyrogram import enums, types
-from py_yt import Playlist, VideosSearch
+from ytlookup import Playlist, videosearch
 from UltraMusic import config, logger
 from UltraMusic.helpers import Track, utils
 
@@ -483,7 +483,7 @@ class YouTube:
                 # yt-dlp with android client works everywhere.
                 track = None
                 try:
-                    _search = VideosSearch(query, limit=1)
+                    _search = videosearch(query, limit=1)
                     results = await asyncio.wait_for(_search.next(), timeout=8)
                     if results and results.get("result"):
                         data = results["result"][0]
