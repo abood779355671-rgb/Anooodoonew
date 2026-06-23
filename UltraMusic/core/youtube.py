@@ -379,7 +379,7 @@ class YouTube:
             "extractor_retries": 3,
             # Android client bypasses YouTube bot-detection on datacenter IPs
             # (Lightsail, Render, etc.) without needing PO tokens.
-            "extractor_args": {"youtube": {"player_client": ["android", "web"]}},
+            "extractor_args": {"youtube": {"player_client": ["android"]}},
         }
         if cookie:
             opts["cookiefile"] = cookie
@@ -590,7 +590,7 @@ class YouTube:
                 "extractor_retries": 5,
                 "sleep_interval_requests": 1,
                 # Use android client to bypass YouTube bot detection on server IPs
-                "extractor_args": {"youtube": {"player_client": ["android", "web"]}},
+                "extractor_args": {"youtube": {"player_client": ["android"]}},
             }
             if getattr(config, "YTDLP_PROXY", ""):
                 ydl_opts["proxy"] = config.YTDLP_PROXY
@@ -706,7 +706,7 @@ class YouTube:
                 "sleep_interval_requests": 1,
                 # Use android client to bypass YouTube bot detection on server IPs.
                 # Android client does not require PO tokens and works from datacenter IPs.
-                "extractor_args": {"youtube": {"player_client": ["android", "web"]}},
+                "extractor_args": {"youtube": {"player_client": ["android"]}},
             }
 
             if getattr(config, "YTDLP_PROXY", ""):
@@ -747,7 +747,7 @@ class YouTube:
                 # Audio mode: favor m4a/opus for best compatibility
                 ydl_opts = {
                     **base_opts,
-                    "format": "bestaudio[ext=m4a]/bestaudio[acodec=opus]/bestaudio/best",
+                    "format": "bestaudio",
                     "postprocessors": [],
                 }
 
@@ -843,3 +843,5 @@ class YouTube:
             ydl_opts_no_cookie = {**ydl_opts}
             ydl_opts_no_cookie.pop("cookiefile", None)
             return await asyncio.to_thread(_download, ydl_opts_no_cookie)
+
+}
